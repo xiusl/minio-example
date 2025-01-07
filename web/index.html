@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <!-- <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script> -->
+</head>
+
+<body>
+    <div id="app">
+
+        <div>
+            <input type="file" accept="image/*" id="input" />
+            <input type="checkbox"  id="checkbox" >protect</input>
+
+            <div id="images" style="display: flex;">
+
+            </div>
+
+            <div id="list">
+
+            </div>
+        </div>
+    </div>
+    <script>
+        function fetchImages() {
+            let images = document.getElementById("images")
+            while (images.lastChild) {
+                images.removeChild(images.lastChild)
+            }
+
+            let listDom = document.getElementById('list')
+            while (listDom.lastChild) {
+                listDom.removeChild(listDom.lastChild)
+            }
+            fetch(`http://127.0.0.1:8888/images`, {
+                method: 'GET',
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data)
+                    let listDom = document.getElementById('list')
+                    for (let img of data) {
+                        var imgDom = document.createElement('img')
+                        imgDom.src = img
+                        imgDom.style = "width:120px;height:120px;object-fit:contain;margin-right:10px;"
+                        images.appendChild(imgDom)
+
+                        var pDom = document.createElement('code')
+                        pDom.innerHTML = img
+                        listDom.appendChild(pDom)
+                        listDom.appendChild(document.createElement('br'))
+                    }
+                    
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                });
+        }
+        function uploadImage(url, fd) {
+            fetch(url, {
+                method: 'POST',
+                body: fd
+            })
+                .then(response => response.data)
+                .then(result => {
+                    fetchImages()
+                    document.getElementById("input").value = ''
+                })
+                .catch((error) => {
+                    console.error('Error uploading file:', error);
+                });
+        }
+        document.getElementById("checkbox").addEventListener("change", function () {
+            console.log(document.getElementById("checkbox").checked)
+        })
+
+        let input = document.getElementById("input")
+        input.addEventListener("change", function () {
+            if (input.files.length == 0) { return }
+            let file = input.files[0]
+            var key = file.name
+            if (document.getElementById("checkbox").checked) {
+                key = 'protect/' + file.name
+            }
+            console.log(key)
+            fetch(`http://127.0.0.1:8888/presignedPostPolicy?key=${key}`, {
+                method: 'GET',
+            })
+                .then(response => response.json())
+                .then(data => {
+                    let formData = new FormData();
+                    for (const key in data.fields) {
+                        formData.append(key, data.fields[key]);
+                    }
+                    formData.append("file", file);
+
+                    uploadImage(data.url, formData)
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                });
+        })
+        fetchImages()
+    </script>
+</body>
+
+</html>
